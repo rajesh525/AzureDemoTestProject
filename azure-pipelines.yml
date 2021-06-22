@@ -49,7 +49,7 @@ jobs:
     displayName: VsTest - Run Tests
     inputs:
       testAssemblyVer2: >-
-        **\TestProject.dll
+        **\Release\netcoreapp3.1\TestProject.dll
 
         !**\*TestAdapter.dll
 
