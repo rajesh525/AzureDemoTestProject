@@ -3,52 +3,55 @@
 # Add steps that run tests, create a NuGet package, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
 
-trigger:
-- master
-
-pool:
-  name: Default
-  demands: vstest
-
+# Variable 'Browser' was defined in the Variables tab
 variables:
-  buildConfiguration: 'Release'
-  buildPlatform: 'any cpu'
+- name: BuildParameters.RestoreBuildProjects
+  value: '**/*.csproj'
+name: $(date:yyyyMMdd)$(rev:.r)
+resources:
+  repositories:
+  - repository: self
+    type: git
+    ref: master
+jobs:
+- job: Job_1
+  displayName: laptop
+  pool:
+    name: Default
+  steps:
+  - checkout: self
+  - task: DotNetCoreCLI@2
+    displayName: Restore
+    inputs:
+      command: restore
+      projects: $(BuildParameters.RestoreBuildProjects)
+  - task: DotNetCoreCLI@2
+    displayName: Build
+    inputs:
+      projects: $(BuildParameters.RestoreBuildProjects)
+      arguments: --configuration $(BuildConfiguration) --no-restore
+  - task: DotNetCoreCLI@2
+    displayName: Publish
+    inputs:
+      command: publish
+      publishWebProjects: false
+      projects: $(BuildParameters.RestoreBuildProjects)
+      arguments: --configuration $(BuildConfiguration) --output "$(build.artifactstagingdirectory)" --no-build
+      zipAfterPublish: false
+      modifyOutputPath: false
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Artifact
+    condition: succeededOrFailed()
+    inputs:
+      PathtoPublish: $(build.artifactstagingdirectory)
+      TargetPath: '\\my\share\$(Build.DefinitionName)\$(Build.BuildNumber)'
+  - task: VSTest@2
+    displayName: VsTest - Run Tests
+    inputs:
+      testAssemblyVer2: >-
+        **\Release\netcoreapp3.1\TestProject.dll
 
-steps:
-- task: DotNetCoreCLI@2
-  displayName: Restore
-  inputs:
-    command: restore
-    projects: '$(Parameters.RestoreBuildProjects)'
+        !**\*TestAdapter.dll
 
-- task: DotNetCoreCLI@2
-  displayName: Build
-  inputs:
-    projects: '$(Parameters.RestoreBuildProjects)'
-    arguments: '--configuration $(BuildConfiguration) --no-restore'
-
-- task: DotNetCoreCLI@2
-  displayName: Publish
-  inputs:
-    command: publish
-    publishWebProjects: false
-    projects: '$(Parameters.RestoreBuildProjects)'
-    arguments: '--configuration $(BuildConfiguration) --output "$(build.artifactstagingdirectory)" --no-build'
-    zipAfterPublish: false
-    modifyOutputPath: false
-
-- task: PublishBuildArtifacts@1
-  displayName: 'Publish Artifact'
-  inputs:
-    PathtoPublish: '$(build.artifactstagingdirectory)'
-  condition: succeededOrFailed()
-
-- task: VSTest@2
-  displayName: 'VsTest - Run Tests'
-  inputs:
-    testAssemblyVer2: |
-     **\Release\netcoreapp3.1\TestProject.dll
-     !**\*TestAdapter.dll
-     !**\obj\**
-    testFiltercriteria: 'TestCategory=smoke'
-
+        !**\obj\**
+      testFiltercriteria: TestCategory=smoke
